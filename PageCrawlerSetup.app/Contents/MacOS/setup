@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# Page Crawler Setup — registers the bundled helper to run at login.
+#
+# The helper binary lives next to this script. It contains its own Python
+# interpreter and all dependencies, so the install does not touch the
+# user's Python environment. There is no notebooklm login step either:
+# the helper reads Google cookies from Chrome on first run.
+
+set -euo pipefail
+
+APP_BUNDLE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"   # …/PageCrawlerSetup.app
+HELPER="$APP_BUNDLE/Contents/MacOS/helper"
+LABEL="com.paul.page-crawler-helper"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+LOG_DIR="$HOME/.cache/page-crawler-helper"
+
+mkdir -p "$LOG_DIR" "$HOME/Library/LaunchAgents"
+
+# Helpers
+dialog_ok_cancel() {
+    osascript >/dev/null 2>&1 <<EOF
+tell application "System Events"
+    activate
+    display dialog "$1" with title "Page Crawler" buttons {"Cancel", "Install"} default button "Install" with icon note
+end tell
+EOF
+}
+alert_error() {
+    osascript >/dev/null 2>&1 <<EOF
+tell application "System Events"
+    activate
+    display alert "Page Crawler" message "$1" as critical
+end tell
+EOF
+}
+alert_success() {
+    osascript >/dev/null 2>&1 <<EOF
+tell application "System Events"
+    activate
+    display alert "Done" message "$1" as informational
+end tell
+EOF
+}
+
+# Sanity: the helper binary must exist (i.e., build.sh has been run).
+if [ ! -x "$HELPER" ]; then
+    alert_error "The bundled helper is missing. Run build.sh on the developer Mac first, then redistribute this .app."
+    exit 1
+fi
+
+# Welcome
+if ! dialog_ok_cancel "Install Page Crawler? Takes 5 seconds."; then
+    exit 0
+fi
+
+# Write the launchd plist that runs the helper at every login.
+cat > "$PLIST" <<PLIST_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>$LABEL</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$HELPER</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$LOG_DIR/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>$LOG_DIR/stderr.log</string>
+</dict>
+</plist>
+PLIST_EOF
+
+# Idempotent reload.
+launchctl unload "$PLIST" 2>/dev/null || true
+if ! launchctl load "$PLIST" 2>>"$LOG_DIR/install.log"; then
+    alert_error "Could not start the helper. Check $LOG_DIR/stderr.log"
+    exit 1
+fi
+
+# Give the helper a moment to bind to 127.0.0.1:7837 before declaring success.
+for _ in 1 2 3 4 5; do
+    if curl -sf http://127.0.0.1:7837/status >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.6
+done
+
+alert_success "Click the Page Crawler icon in Chrome. macOS may ask once for permission to read Chrome cookies. Click Always Allow."
+exit 0
