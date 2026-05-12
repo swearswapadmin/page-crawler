@@ -1,6 +1,6 @@
 # Page Crawler
 
-Internal clinic tool. Crawl any company website for law-relevant assertions, then get a structured analysis back inside the extension. Industry-agnostic — same logic for food, supplements, cosmetics, software, financial services, professional services, consumer goods, or anything else with a public-facing website.
+Crawl any company website for law-relevant assertions, then get a structured analysis back inside the extension. Industry-agnostic — same logic for food, supplements, cosmetics, software, financial services, professional services, consumer goods, or anything else with a public-facing website.
 
 The tool inventories factual verifiable claims, effect claims, implied claims, operational cues, and testimonials. It does not do legal analysis. You take the inventory and apply the regulatory frameworks.
 
@@ -109,7 +109,7 @@ That script will:
 
 After rebuilding, double-click `PageCrawlerSetup.app` again to reload the helper.
 
-## Notes for clinic teammates
+## Notes
 
 - **The first scan is slow.** Crawling 50 pages takes about a minute, and the LLM queries take 15–30 seconds each per source. A typical full review takes 2–4 minutes end-to-end.
 - **Don't worry about the detached window.** Once you click Review, a separate popup window opens. You can do anything else in Chrome — the run continues in that window until it finishes or you close it.
